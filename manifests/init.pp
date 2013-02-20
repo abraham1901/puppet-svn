@@ -43,34 +43,69 @@ class svn {
     #        notify     => Service["named"],
     #    } # svn::checkout
     #
-    define checkout($reposerver, $method, $repopath, $branch, $workingdir, $remoteuser = false, $localuser) {
+	define checkout($reposerver = false, 
+			$method = false, 
+			$repopath = false, 
+			$branch = false, 
+			$workingdir = false, 
+			$trustcert = false, 
+			$revision = "HEAD", 
+			$remoteuser = false, 
+			$remotepass = false, 
+			$localuser 
+	) {
 
         Exec {
             path => "/bin:/usr/bin:/usr/local/bin",
             user        => $localuser,
             environment => $localuser ? {
                 puppet      => "HOME=/var/lib/puppet",
-                dnsreposvn  => "HOME=/home/dnsreposvn",
+                svnupdater  => "HOME=/home/svnupdater",
                 },
         } # Exec
 
-        $svn_command_checkout = $remoteuser ? {
-            false   => "svn checkout --non-interactive $method://$reposerver/$repopath/$branch $workingdir",
-            default => "svn checkout --non-interactive $method://$remoteuser@$reposerver/$repopath/$branch $workingdir"
-        } # case
+	$urlmethod = $method ? {
+		false => "",
+		default => "$method://"
+	}
 
-        $svn_command_switch = $remoteuser ? {
-            false   => "svn switch --non-interactive $method://$reposerver/$repopath/$branch $workingdir",
-            default => "svn switch --non-interactive $method://$remoteuser@$reposerver/$repopath/$branch $workingdir"
-        } # case
+	$optuser = $remoteuser ? {
+		false	=> "",
+		default	=> "--username $remoteuser",
+	}
+
+	$urlhost = $host ? {
+		false	=> "",
+		default	=> "$reposerver"
+	}
+
+	$optpassword = $remotepass ? {
+		false	=> "",
+		default	=> "--password $remotepass"
+	}
+
+	$opttrustcert = $trustcert ? {
+		false	=> "",
+		default => "--trust-server-cert --non-interactive"
+	}
+
+        $optnoauthcache = $noauthcache ? {
+                false => "",
+                default => "--no-auth-cache"
+        }
+
+	$svnurl = "${urlmethod}${urlhost}${repopath}${branch}"
+
+	$svn_command_checkout = "svn checkout $optnoauthcache $optuser $optpassword $opttrustcert -r$revision $svnurl $workingdir"
+	$svn_command_switch = "svn switch $optnoauthcache $optuser $optpassword $opttrustcert -r$revision $svnurl $workingdir"
 
         file { "$workingdir":
             owner   => $remoteuser ? {
-                dnsreposvn  => "dnsreposvn",
+                svnupdater  => "svnupdater",
                 false       => "$localuser",
             },
             group   => $remoteuser ? {
-                dnsreposvn  => "named",
+                svnupdater  => "svnupdater",
                 false       => "$localuser",
             },
             ensure  => directory,
@@ -81,18 +116,18 @@ class svn {
             "initial checkout":
                 command => $svn_command_checkout,
                 require => File["$workingdir"],
-                before  => Exec["switch"],
+#                before  => Exec["switch"],
                 creates => "$workingdir/.svn";
-            "switch":
-                command => $svn_command_switch,
-                require => [File["$workingdir"],Exec["update"]],
-                before  => Exec["revert"];
-            "update":
-                require => File["$workingdir"],
-                command =>  "svn update --non-interactive $workingdir";
-            "revert":
-                command => "svn revert -R $workingdir",
-                onlyif  => "svn status --non-interactive $workingdir | egrep '^M|^! |^? ' ";
+#            "switch":
+#                command => $svn_command_switch,
+#                require => [File["$workingdir"],Exec["update"]],
+#                before  => Exec["revert"];
+#            "update":
+#                require => File["$workingdir"],
+#                command =>  "svn update --non-interactive $workingdir";
+#            "revert":
+#                command => "svn revert -R $workingdir",
+#                onlyif  => "svn status --non-interactive $workingdir | egrep '^M|^! |^? ' ";
         } # exec
     } # define checkout
 } # class svn
