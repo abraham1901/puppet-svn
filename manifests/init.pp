@@ -130,4 +130,71 @@ class svn {
 #                onlyif  => "svn status --non-interactive $workingdir | egrep '^M|^! |^? ' ";
         } # exec
     } # define checkout
+
+	define export($reposerver = false, 
+			$method = false, 
+			$repopath = false, 
+			$branch = false, 
+			$exportfile, 
+			$workingdir = false,
+			$trustcert = false, 
+			$revision = "HEAD", 
+			$remoteuser = false, 
+			$remotepass = false, 
+			$localuser 
+	) {
+
+        Exec {
+            path => "/bin:/usr/bin:/usr/local/bin",
+#            user        => $localuser,
+            environment => "HOME=/home/svnupdater",
+        } # Exec
+
+	$urlmethod = $method ? {
+		false => "",
+		default => "$method://"
+	}
+
+	$optuser = $remoteuser ? {
+		false	=> "",
+		default	=> "--username $remoteuser",
+	}
+
+	$urlhost = $host ? {
+		false	=> "",
+		default	=> "$reposerver"
+	}
+
+	$optpassword = $remotepass ? {
+		false	=> "",
+		default	=> "--password $remotepass"
+	}
+
+	$opttrustcert = $trustcert ? {
+		false	=> "",
+		default => "--trust-server-cert --non-interactive"
+	}
+
+        $optnoauthcache = $noauthcache ? {
+                false => "",
+                default => "--no-auth-cache"
+        }
+
+	$svnurl = "${urlmethod}${urlhost}/${repopath}/${branch}/${exportfile}"
+
+	$svn_command_export = "svn export $optnoauthcache $optuser $optpassword $opttrustcert -r$revision $svnurl $workingdir/$exportfile"
+
+        exec {
+            "export file":
+                command => $svn_command_export,
+                require => File["$workingdir/$exportfile"],
+		creates => "$workingdir/$exportfile",
+        } # exec
+
+    	file { "$workingdir/$exportfile":
+            owner   => $localuser,
+            group   => $localuser,
+        } # file
+    } # define export
+
 } # class svn

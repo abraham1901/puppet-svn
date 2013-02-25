@@ -11,7 +11,7 @@ class svn::repo {
     include generic
     include svn::server
 
-    $base = "/opt/$lsbProvider/svn/"
+    $base = "/home/svn/"
 
     file { "$base":
         ensure  => directory,

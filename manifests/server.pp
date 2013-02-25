@@ -47,15 +47,15 @@ class svn::server inherits svn {
     #        base => "$svn::repo::base",
     #    }
     #
-    define setup ($base, $source = undef, $hooksource = '') {
+    define setup ( group = "www-data", owner = "www-data", $base, $source = undef, $hooksource = '') {
         $Realhooks = $hooksource ? {
             ''      => "puppet:///modules/svn/$name/hooks",
             default => $hooksource
         } # $Realhooks
 
         File {
-            group => "apache",
-            owner => "apache",
+            group => $group,
+            owner => $owner,
             mode  => "755",
         } # File
 
